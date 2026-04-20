@@ -8,6 +8,7 @@ import DropZone from "@/components/DropZone";
 import Onboarding from "@/components/Onboarding";
 import ShortcutsModal from "@/components/ShortcutsModal";
 import TemplatesModal from "@/components/TemplatesModal";
+import Toast from "@/components/Toast";
 import Topbar from "@/components/Topbar";
 import RightPanel from "@/components/panels/RightPanel";
 import { useAutosave } from "@/hooks/useAutosave";
@@ -363,6 +364,7 @@ export default function EditorRoute() {
       <ShortcutsModal />
       <TemplatesModal open={isTemplatesOpen} onClose={closeTemplates} />
       <Onboarding open={isOnboardingOpen} onClose={closeOnboarding} />
+      <Toast />
     </div>
   );
 }

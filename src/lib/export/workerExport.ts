@@ -131,9 +131,22 @@ export async function exportAndDownloadViaWorker(
 }
 
 export async function exportAndCopyViaWorker(doc: Document): Promise<void> {
-  const blob = await exportViaWorker({ doc, format: "png", quality: 1, pixelRatio: 2 });
   if (!("clipboard" in navigator) || !("write" in navigator.clipboard)) {
     throw new Error("Clipboard image write not supported");
   }
-  await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+  // Pass the Blob Promise directly to ClipboardItem so the browser treats the
+  // write as part of the original user-activation scope — if we awaited the
+  // blob first, the activation window would expire on strict browsers.
+  const blobPromise = exportViaWorker({ doc, format: "png", quality: 1, pixelRatio: 2 });
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+  } catch (err) {
+    // Safari <16 doesn't accept Promise values in ClipboardItem. Retry once
+    // with the resolved blob — may still hit activation limits but gives us
+    // the best chance across browsers.
+    const blob = await blobPromise;
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    // Re-throw if the resolved path also failed, but only reach this on success
+    void err;
+  }
 }

@@ -71,12 +71,18 @@ export async function downloadExport(opts: UnifiedExportOptions): Promise<void> 
 }
 
 export async function copyExport(opts: UnifiedExportOptions): Promise<void> {
+  if (!("clipboard" in navigator) || !("write" in navigator.clipboard)) {
+    throw new Error("Clipboard image write not supported");
+  }
   if (opts.doc.viewMode === "3d") {
-    const blob = await exportThreeCanvas("png", 1);
-    if (!("clipboard" in navigator) || !("write" in navigator.clipboard)) {
-      throw new Error("Clipboard image write not supported");
+    // Pass the blob Promise directly so we stay in the user-activation scope.
+    const blobPromise = exportThreeCanvas("png", 1);
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+    } catch {
+      const blob = await blobPromise;
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     }
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
     return;
   }
   if (isWorkerExportSupported()) {

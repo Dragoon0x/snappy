@@ -1,3 +1,4 @@
+import { showToast } from "@/components/Toast";
 import { copyExport, downloadExport } from "@/lib/export";
 import { encodeDocumentForShare } from "@/lib/share/encode";
 import { modKey } from "@/lib/utils";
@@ -46,8 +47,10 @@ export default function Topbar({ stageRef }: Props) {
         quality: 0.95,
         filename: doc.name.replace(/\s+/g, "-").toLowerCase() || "snappy",
       });
+      showToast(`Exported ${lastFormat.toUpperCase()}`);
     } catch (err) {
       console.warn(err);
+      showToast(err instanceof Error ? err.message : "Export failed", "error");
     } finally {
       setExporting(false);
     }
@@ -63,22 +66,52 @@ export default function Topbar({ stageRef }: Props) {
         quality: 1,
         filename: doc.name,
       });
+      showToast("Copied image to clipboard");
     } catch (err) {
       console.warn(err);
+      const msg = err instanceof Error ? err.message : "Clipboard copy failed";
+      showToast(
+        msg.toLowerCase().includes("permission")
+          ? "Clipboard permission denied — check browser settings"
+          : msg,
+        "error",
+      );
     }
   };
 
   const handleShare = async () => {
     const result = encodeDocumentForShare(doc);
     if (!result.ok) {
-      alert("This scene is too complex to share via URL. Export JSON instead.");
+      showToast("Scene too complex to share via URL — export JSON instead", "error");
       return;
     }
     try {
       await navigator.clipboard.writeText(result.url);
-    } catch {
-      prompt("Share URL:", result.url);
+      showToast("Share URL copied to clipboard");
+      return;
+    } catch (err) {
+      console.warn("Clipboard writeText failed, trying execCommand fallback:", err);
     }
+    // Fallback for older or restrictive contexts — hidden textarea + execCommand.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = result.url;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;left:0;top:0;";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      if (ok) {
+        showToast("Share URL copied");
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    console.warn("Share URL (clipboard blocked):", result.url);
+    showToast("Couldn't access clipboard — URL logged to console", "error");
   };
 
   return (
