@@ -1,8 +1,13 @@
+import { showToast } from "@/components/Toast";
+import { extractPalette } from "@/lib/palette/extract";
+import { harmoniseToBackground } from "@/lib/palette/harmonize";
 import { gradientPresets } from "@/lib/presets/gradients";
 import { shaderPresetMap, shaderPresets } from "@/lib/presets/shaders";
+import { useAssetStore } from "@/store/assetStore";
 import { useDocumentStore } from "@/store/documentStore";
 import type { Background } from "@/types/document";
-import { Shuffle } from "lucide-react";
+import { Shuffle, Wand2 } from "lucide-react";
+import { useState } from "react";
 import ColorInput from "../ui/ColorInput";
 import Segmented from "../ui/Segmented";
 import Slider from "../ui/Slider";
@@ -10,11 +15,45 @@ import Slider from "../ui/Slider";
 export default function BackgroundPanel() {
   const bg = useDocumentStore((s) => s.doc.background);
   const setBackground = useDocumentStore((s) => s.setBackground);
+  const assetId = useDocumentStore((s) => s.doc.screenshot.assetId);
+  const assetEntry = useAssetStore((s) => (assetId ? s.cache.get(assetId) : null));
+  const [matching, setMatching] = useState(false);
 
   const kind = bg.kind;
 
+  const matchToScreenshot = async () => {
+    if (!assetEntry?.image || matching) return;
+    setMatching(true);
+    try {
+      const palette = await extractPalette(assetEntry.image, { k: 5, sampleSize: 96 });
+      const nextBg = harmoniseToBackground(palette);
+      setBackground(nextBg);
+      showToast("Background matched to screenshot");
+    } catch (err) {
+      console.warn(err);
+      showToast(err instanceof Error ? err.message : "Couldn't extract palette", "error");
+    } finally {
+      setMatching(false);
+    }
+  };
+
   return (
     <div className="flex flex-col">
+      {assetEntry?.image ? (
+        <div className="panel-section">
+          <button
+            type="button"
+            onClick={matchToScreenshot}
+            disabled={matching}
+            className="btn-ghost w-full justify-center border border-border"
+            title="Extract a palette from the screenshot and set it as the background gradient"
+          >
+            <Wand2 size={14} />
+            {matching ? "Matching…" : "Match background to screenshot"}
+          </button>
+        </div>
+      ) : null}
+
       <div className="panel-section">
         <div className="panel-label">Type</div>
         <Segmented<Background["kind"]>

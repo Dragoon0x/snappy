@@ -271,6 +271,36 @@ export function buildCommands(ctx: CommandCtx): Command[] {
   });
 
   cmds.push({
+    id: "match-palette",
+    title: "Magic: match background to screenshot",
+    group: "Magic",
+    keywords: ["palette", "auto", "kmeans", "harmonize"],
+    run: async () => {
+      const doc = useDocumentStore.getState().doc;
+      const assetId = doc.screenshot.assetId;
+      if (!assetId) return;
+      const { useAssetStore } = await import("@/store/assetStore");
+      const entry = useAssetStore.getState().cache.get(assetId);
+      if (!entry?.image) return;
+      const { extractPalette } = await import("@/lib/palette/extract");
+      const { harmoniseToBackground } = await import("@/lib/palette/harmonize");
+      const palette = await extractPalette(entry.image, { k: 5 });
+      useDocumentStore.getState().setBackground(harmoniseToBackground(palette));
+    },
+  });
+
+  cmds.push({
+    id: "smart-crop",
+    title: "Magic: smart crop OS chrome",
+    group: "Magic",
+    keywords: ["crop", "trim", "auto", "chrome", "traffic", "taskbar"],
+    run: async () => {
+      const { applyAutoCropToCurrentAsset } = await import("@/lib/crop/applyAutoCrop");
+      await applyAutoCropToCurrentAsset();
+    },
+  });
+
+  cmds.push({
     id: "view-2d",
     title: "View: 2D",
     group: "View",
